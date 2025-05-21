@@ -182,8 +182,7 @@ class MoveGroupPythonInterface(object):
 
             waypoints.append(copy.deepcopy(pose_goal))
             (plan, fraction) = move_group.compute_cartesian_path(waypoints,
-                                                                0.01,
-                                                                0.0)
+                                                                0.01)
             # Display compute path
             display_trj = moveit_msgs.msg.DisplayTrajectory()
             display_trj.trajectory_start = self.robot.get_current_state()

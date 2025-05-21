@@ -5,3 +5,5 @@ ur5e_2f_85_controller/src/ai_controller/context
 __pycache__
 *.pyc
 context/*
+.vscode
+to_mount/*

@@ -1,0 +1,76 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
+{
+	"name": "ros_ur5e_noetic",
+    "image": "ros_ur5e_noetic:v2", // change to version 1 for trajectory collection
+	//"build": {
+	//	"dockerfile": "Dockerfile",
+	//	"args": {}
+	//},
+    "runArgs": [
+        "-it",
+        "--gpus", "all",
+        "--runtime=nvidia",
+        "--rm",
+        "--network","host",
+        "-p", "2222:22",
+        "--privileged",
+        "--name", "ur_controller",
+        "-v", "/home/mivia/Scrivania/Ur5e/Ur5e-2f-85f/docker/docker_ubuntu20:/home/docker_ubuntu20",
+        // this is a path to novel code for human-demonstrations
+        "-v", "/home/mivia/Scrivania/Ur5e/Luigi_Vicidomini/nuovo:/home/file_to_copy",
+        "-v", "/home/mivia/Scrivania/Ur5e/Ur5e-2f-85f/to_mount/launch_folder:/home/mivia/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/launch",
+        "-v", "/home/mivia/Scrivania/Ur5e/Ur5e-2f-85f/to_mount/ai_controller:/home/mivia/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/ai_controller",
+        "-v", "/home/mivia/Scrivania/Ur5e/Ur5e-2f-85f/to_mount/move_group_python_interface.py:/home/mivia/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/controller/move_group_python_interface.py",
+        "-v", "/home/mivia/Scrivania/Ur5e/Ur5e-2f-85f/to_mount/test_node.py:/home/mivia/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/controller/test_node.py",
+        // for testing models <<<
+        "-v", "/home/mivia/Scrivania/Ur5e/Human_Demo_for_test:/home/mivia/Human_Demo_for_test",
+        "-v", "/home/mivia/Scrivania/Ur5e/Chekpoints:/home/mivia/Chekpoints",
+        "-v", "/dev:/dev",
+        "-v", "/media:/media",
+        "--env=DISPLAY",
+        "--env=QT_X11_NO_MITSHM=1",
+        "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
+    ],
+	"workspaceFolder": "/home/mivia",
+    //"workspaceMount": "source=${localWorkspaceFolder},target=/home/mivia,type=bind",
+    "customizations": {
+        "vscode": {
+            "extensions":[
+                "ms-azuretools.vscode-docker",
+                "ms-python.vscode-pylance",
+                "ms-python.python",
+                "mhutchie.git-graph",
+                "oderwat.indent-rainbow",
+                "mintlify.document",
+                "tal7aouy.rainbow-bracket",
+                "mechatroner.rainbow-csv",
+                "ms-vscode.cmake-tools",
+                "ms-vscode.live-server",
+                "Perkovec.emoji",
+                "GitHub.vscode-pull-request-github"
+            ]
+        }
+    },
+    // "containerEnv": {
+    //     "PYTHONPATH": "${localEnv:PYTHONPATH}:/catkin_ws"
+    // },
+	"postCreateCommand": "bash /home/docker_ubuntu20/start.sh"
+
+	// "-v","~/Volumes:/home/usr/"
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Uncomment the next line to run commands after the container is created.
+	// "postCreateCommand": ""
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "devcontainer"
+}

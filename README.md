@@ -10,6 +10,7 @@ sudo apt-get install build-essential bc ca-certificates gnupg2 libssl-dev wget g
 
 ```
 https://cdn.kernel.org/pub/linux/kernel/projects/rt/5.14/patches-5.14.2-rt21.tar.xz
+
 2. Follow the step below
 ``` bash
 wget https://cdn.kernel.org/pub/linux/kernel/projects/rt/5.14/patch-5.14.2-rt21.patch.xz

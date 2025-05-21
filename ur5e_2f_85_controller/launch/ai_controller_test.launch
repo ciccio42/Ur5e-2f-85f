@@ -1,30 +1,25 @@
 <launch>
-    <arg name="model_folder"
-        default="/home/ciccio/Desktop/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/ai_controller/checkpoint/mosaic_kp"
-    />
-    <arg name="model_name"
-        default="model_save_dp_no_state_finetuned_no_val-63630.pt" />
 
-    <!-- <arg name="model_folder"
-    default="/home/ciccio/Desktop/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/ai_controller/checkpoint/mosaic"
-    />
-    <arg name="model_name"
-        default="model_save_new_no_State_No_finetuned_No_val_0_1_4_5_8_9-124610.pt" /> -->
-
+<arg name="model_folder"
+    default="/home/mivia/Chekpoints/Human-Demo-Test/policy/Real-1Task-pick_place-human_rgb-MOSAIC-KP_State_false_Finetued_LR_0.0005-Batch32"
+/>
+<arg name="model_name"
+    default="model_save-129.pt" />
 
     <rosparam command="load" file="$(find dataset_collector)/config/dataset_collector.yaml" />
     <!-- Context-->
     <arg name="context_path"
-        default="/home/ciccio/Desktop/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/ai_controller/context" />
-    <arg
-        name="task_name"
+        default="/home/mivia/Human_Demo_for_test" />
+    <arg name="task_name"
         default="pick_place" />
     <arg name="context_robot_name"
-        default="panda" />
+        default="human_rgb" />
     <arg name="variation_number"
         default="0" />
     <arg name="trj_number"
-        default="0" />
+        default="5" />
+    <arg name="save_path"
+        default="/home/mivia/catkin_ws" />
 
     <!-- Gripper drivers -->
     <!-- <node name="robotiq_2f_gripper_control" pkg="robotiq_2f_gripper_control"
@@ -43,7 +38,7 @@
     <!-- Run ai-controller-node -->
     <node name="test_node" pkg="ur5e_2f_85_controller"
         type="test_node.py"
-        args="--model_folder  $(arg model_folder) --model_name  $(arg model_name) --context_path  $(arg context_path) --task_name  $(arg task_name) --context_robot_name  $(arg context_robot_name) --variation_number $(arg variation_number) --trj_number $(arg trj_number) --correct_sample"
+        args="--model_folder  $(arg model_folder) --model_name  $(arg model_name) --context_path  $(arg context_path) --task_name  $(arg task_name) --context_robot_name  $(arg context_robot_name) --variation_number $(arg variation_number) --trj_number $(arg trj_number) --save_path $(arg save_path) --write_summary"
         output="screen"
         required="true">
     </node>

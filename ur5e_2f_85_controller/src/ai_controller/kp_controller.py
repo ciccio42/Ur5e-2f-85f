@@ -11,6 +11,9 @@ from torchvision.transforms import ToTensor, Normalize
 from torchvision.transforms.functional import resized_crop
 from multi_task_il.models.cond_target_obj_detector.utils import project_bboxes
 from colorama import Fore, Back, Style
+from PIL import Image
+from torchvision.utils import save_image
+
 print(f"cv2 file ctod controller {cv2.__file__}")
 
 
@@ -30,10 +33,10 @@ class KPController():
         # 1. Load configuration file
         self._config = OmegaConf.load(conf_file_path)
         # modify path for CTOD
-        self._config.policy["target_obj_detector_path"] = os.path.join(
-            conf_file_path.split("/config")[0], f"../ctod")
-        self._config.policy["model_char"] = conf_file_path.split(
-            "/")[-1].split("config_")[-1].split('.')[0]
+        # self._config.policy["target_obj_detector_path"] = os.path.join(
+        #     conf_file_path.split("/config")[0], f"../ctod")
+        # self._config.policy["model_char"] = conf_file_path.split(
+        #     "/")[-1].split("config_")[-1].split('.')[0]
         # 2. Load model
         self._model = self.load_model(model_path=model_file_path).cuda(0)
         self._model.eval()
@@ -44,6 +47,10 @@ class KPController():
         self._variation_number = variation_number
         self._trj_number = trj_number
         self._camera_name = camera_name
+        self.normalize = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])        
+        self.denormalize = Normalize(
+            mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
+            std=[1/0.229, 1/0.224, 1/0.225])
 
         # self._max_z = 0.05  # 5 cm
         # self._prev_action = np.array([0.0, 0.0, 0.0])
@@ -58,6 +65,7 @@ class KPController():
         #                             trj_number)
         # self.show_context()
         # self.pre_process_context()
+
 
     def show_context(self):
         print("Current task to execute")
@@ -74,16 +82,17 @@ class KPController():
             image[row * img_h:(row + 1) * img_h, col *
                   img_w:(col + 1) * img_w, :] = self._context[t][:, :, ::-1]
 
-        while True:
-            cv2.imshow("Image", image)
-            cv2.setWindowProperty("Image", cv2.WND_PROP_TOPMOST, 1)
-            key = cv2.waitKey(0)
-            if key == 27:
-                break
+        # while True:
+        cv2.imshow("Image", image)
+        cv2.setWindowProperty("Image", cv2.WND_PROP_TOPMOST, 1)
+        cv2.waitKey(2000)
+        # key = cv2.waitKey(2000)
+        # if key == 27:
+            # break
     def pre_process_context(self):
         # 4. Pre-process context frames
         self._context = [self.pre_process_input(
-            i[:, :, ::-1])[0][None] for i in self._context]
+            i)[0][None] for i in self._context]
 
         if isinstance(self._context[0], np.ndarray):
             self._context = torch.from_numpy(
@@ -111,40 +120,50 @@ class KPController():
         traj = sample['traj']
 
         demo_t = self._config.dataset_cfg.demo_T
-        frames = []
         selected_frames = []
 
-        for i in range(demo_t):
-            # get first frame
-            if i == 0:
-                n = 1
-            # get the last frame
-            elif i == demo_t - 1:
-                n = len(traj) - 1
-            elif i == 1:
-                obj_in_hand = 0
-                # get the first frame with obj_in_hand and the gripper is closed
-                for t in range(1, len(traj)):
-                    state = traj.get(t)['info']['status']
-                    trj_t = traj.get(t)
-                    gripper_act = trj_t['action'][-1]
-                    if state == 'obj_in_hand' and gripper_act == 1:
-                        obj_in_hand = t
-                        n = t
-                        break
-            elif i == 2:
-                # get the middle moving frame
-                start_moving = 0
-                end_moving = 0
-                for t in range(obj_in_hand, len(traj)):
-                    state = traj.get(t)['info']['status']
-                    if state == 'moving' and start_moving == 0:
-                        start_moving = t
-                    elif state != 'moving' and start_moving != 0 and end_moving == 0:
-                        end_moving = t
-                        break
-                n = start_moving + int((end_moving-start_moving)/2)
-            selected_frames.append(n)
+        if "human" in context_robot_name:
+            selected_frames = [0, int(len(traj)/demo_t), int(len(traj)/demo_t*2), len(traj)-1]
+            # selected_frames = [int(i) for i in selected_frames]
+            # for i in range(demo_t):
+            #     if i == 0: # first frame
+            #         pass
+            #     elif i == len(demo_t) - 1: # last frame
+            #         pass
+            #     else: # frames in the middle
+            #         pass
+        else:
+            for i in range(demo_t):
+                # get first frame
+                if i == 0:
+                    n = 1
+                # get the last frame
+                elif i == demo_t - 1:
+                    n = len(traj) - 1
+                elif i == 1:
+                    obj_in_hand = 0
+                    # get the first frame with obj_in_hand and the gripper is closed
+                    for t in range(1, len(traj)):
+                        state = traj.get(t)['info']['status']
+                        trj_t = traj.get(t)
+                        gripper_act = trj_t['action'][-1]
+                        if state == 'obj_in_hand' and gripper_act == 1:
+                            obj_in_hand = t
+                            n = t
+                            break
+                elif i == 2:
+                    # get the middle moving frame
+                    start_moving = 0
+                    end_moving = 0
+                    for t in range(obj_in_hand, len(traj)):
+                        state = traj.get(t)['info']['status']
+                        if state == 'moving' and start_moving == 0:
+                            start_moving = t
+                        elif state != 'moving' and start_moving != 0 and end_moving == 0:
+                            end_moving = t
+                            break
+                    n = start_moving + int((end_moving-start_moving)/2)
+                selected_frames.append(n)
 
         if isinstance(traj, (list, tuple)):
             return [traj[i] for i in selected_frames]
@@ -163,6 +182,12 @@ class KPController():
                 if 'object_detector' in key:
                     del weights[key]
             model.load_state_dict(weights, strict=False)
+
+            model.load_target_obj_detector(target_obj_detector_path=self._config.policy.target_obj_detector_path, 
+                                           target_obj_detector_step=self._config.policy.target_obj_detector_step)
+            model._object_detector.eval()
+
+
             return model
         else:
             raise ValueError("Model path cannot be None")
@@ -243,6 +268,8 @@ class KPController():
         # ---- Resized crop ----#
         img_res = resized_crop(obs, top=top, left=left, height=box_h,
                                width=box_w, size=(100, 180))
+        
+        img_res = self.normalize(img_res)
         cv2.imwrite(os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "resize_cropped.png"), np.moveaxis(
             img_res.numpy()*255, 0, -1))
@@ -283,7 +310,7 @@ class KPController():
         box_h, box_w = img_height - top - \
             crop_params[1], img_width - left - crop_params[3]
 
-        img_res_scaled = ToTensor()(obs)
+        img_res_scaled = ToTensor()(obs.copy())
         # ---- Resized crop ----#
         img_res_scaled = resized_crop(img_res_scaled, top=top, left=left, height=box_h,
                                       width=box_w, size=(100, 180))
@@ -291,6 +318,8 @@ class KPController():
         cv2.imwrite(os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "camera_obs_resized.png"), np.array(np.moveaxis(
                 copy.deepcopy(img_res_scaled).cpu().numpy()*255, 0, -1), dtype=np.uint8))
+        
+        img_res_scaled = self.normalize(img_res_scaled)
         adj_bb = None
         # if bb is not None:
         #     adj_bb = self.adjust_bb(bb,
@@ -341,9 +370,8 @@ class KPController():
             obs (np.array): _description_
             robot_state (np.array): _description_
         """
-
         # 1. Pre-process input
-        obs, bb = self.pre_process_obs(obs)
+        obs, bb = self.pre_process_obs(obs.copy()[:, :, ::-1])
         cv2.imwrite(os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "camera_obs.png"), np.array(np.moveaxis(
                 copy.deepcopy(obs).cpu().numpy()*255, 0, -1), dtype=np.uint8))
@@ -400,6 +428,7 @@ class KPController():
                 place_max_score_indx = torch.argmax(
                     prediction['conf_scores_final'][0][place_indx_flags])
 
+            obs = self.denormalize(obs)
             image = np.array(np.moveaxis(
                     obs[0][0][:, :, :].cpu().numpy()*255, 0, -1), dtype=np.uint8)
             scale_factor = self._model._object_detector.get_scale_factors()
@@ -431,12 +460,14 @@ class KPController():
                 #                     (0, 0, 255),
                 #                     1,
                 #                     cv2.LINE_AA)
-                        
+            
             cv2.imwrite(os.path.join(os.path.dirname(
                 os.path.abspath(__file__)), "predicted_bb.png"), image)
-            cv2.imshow("Image", image)
+            cv2.imshow("Image", image[:,:,::-1])
             cv2.setWindowProperty("Image", cv2.WND_PROP_TOPMOST, 1)
             cv2.waitKey(50)
+            Image.fromarray(image).save(os.path.join(os.path.dirname(
+                os.path.abspath(__file__)), "predicted_bb.png"))
             
 
         action = self.post_process_output(action=action)

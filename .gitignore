@@ -2,8 +2,9 @@ ur5e_2f_85_controller/src/ai_controller/checkpoint
 ur5e_2f_85_controller/src/ai_controller/context
 *.png
 *.pt
-__pycache__
 *.pyc
 context/*
 .vscode
 to_mount/*
+ur5e_2f_85_controller/src/ai_controller/cond_module_*
+ur5e_2f_85_controller/src/ai_controller/__pycache__

@@ -11,6 +11,8 @@ from torchvision.transforms import ToTensor, Normalize
 from torchvision.transforms.functional import resized_crop
 from multi_task_il.models.cond_target_obj_detector.utils import project_bboxes
 from colorama import Fore, Back, Style
+from torchvision.utils import save_image
+from PIL import Image
 print(f"cv2 file ctod controller {cv2.__file__}")
 
 
@@ -28,12 +30,12 @@ class CTODController():
 
         super().__init__()
         # 1. Load configuration file
-        self._config = OmegaConf.load(conf_file_path)
+        self._config = OmegaConf.load(conf_file_path) # "/media/mivia/Luigi_SSD/tesi/models_to_test/mosaic_ctod/mosaic_ctod_state_true/config_mosaic_ctod_state_true.yaml")
         # modify path for CTOD
         self._config.policy["target_obj_detector_path"] = os.path.join(
             conf_file_path.split("/config")[0], f"../ctod")
-        self._config.policy["model_char"] = conf_file_path.split(
-            "/")[-1].split("config_")[-1].split('.')[0]
+        # self._config.policy["model_char"] = conf_file_path.split(
+        #     "/")[-1].split("config_")[-1].split('.')[0]
         # 2. Load model
         self._model = self.load_model(model_path=model_file_path).cuda(0)
         self._model.eval()
@@ -81,7 +83,7 @@ class CTODController():
     def pre_process_context(self):
         # 4. Pre-process context frames
         self._context = [self.pre_process_input(
-            i[:, :, ::-1])[0][None] for i in self._context]
+            i)[0][None] for i in self._context]
 
         if isinstance(self._context[0], np.ndarray):
             self._context = torch.from_numpy(
@@ -102,8 +104,8 @@ class CTODController():
         self._t = 0
 
     def _load_context(self, context_path, context_robot_name, task_name, variation_number, trj_number):
-        # 1. Load pkl file
-        with open(os.path.join(context_path, task_name, f"{context_robot_name}_{task_name}", "task_{0:02d}".format(variation_number), "traj{0:03d}.pkl".format(trj_number)), "rb") as f:
+        # 1. Load pkl filelen(demo_t)
+        with open(os.path.join(context_path, task_name, f"{context_robot_name}_{task_name}", "task_{0:02d}".format(variation_number), "traj{0:03d}.pkl".format(0)), "rb") as f:
             sample = pkl.load(f)
 
         traj = sample['traj']
@@ -112,37 +114,48 @@ class CTODController():
         frames = []
         selected_frames = []
 
-        for i in range(demo_t):
-            # get first frame
-            if i == 0:
-                n = 1
-            # get the last frame
-            elif i == demo_t - 1:
-                n = len(traj) - 1
-            elif i == 1:
-                obj_in_hand = 0
-                # get the first frame with obj_in_hand and the gripper is closed
-                for t in range(1, len(traj)):
-                    state = traj.get(t)['info']['status']
-                    trj_t = traj.get(t)
-                    gripper_act = trj_t['action'][-1]
-                    if state == 'obj_in_hand' and gripper_act == 1:
-                        obj_in_hand = t
-                        n = t
-                        break
-            elif i == 2:
-                # get the middle moving frame
-                start_moving = 0
-                end_moving = 0
-                for t in range(obj_in_hand, len(traj)):
-                    state = traj.get(t)['info']['status']
-                    if state == 'moving' and start_moving == 0:
-                        start_moving = t
-                    elif state != 'moving' and start_moving != 0 and end_moving == 0:
-                        end_moving = t
-                        break
-                n = start_moving + int((end_moving-start_moving)/2)
-            selected_frames.append(n)
+        if "human" in context_robot_name:
+            selected_frames = [0, int(len(traj)/demo_t), int(len(traj)/demo_t*2), len(traj)-1]
+            selected_frames = [int(i) for i in selected_frames]
+            # for i in range(demo_t):
+            #     if i == 0: # first frame
+            #         pass
+            #     elif i == len(demo_t) - 1: # last frame
+            #         pass
+            #     else: # frames in the middle
+            #         pass
+        else:
+            for i in range(demo_t):
+                # get first frame
+                if i == 0:
+                    n = 1
+                # get the last frame
+                elif i == demo_t - 1:
+                    n = len(traj) - 1
+                elif i == 1:
+                    obj_in_hand = 0
+                    # get the first frame with obj_in_hand and the gripper is closed
+                    for t in range(1, len(traj)):
+                        state = traj.get(t)['info']['status']
+                        trj_t = traj.get(t)
+                        gripper_act = trj_t['action'][-1]
+                        if state == 'obj_in_hand' and gripper_act == 1:
+                            obj_in_hand = t
+                            n = t
+                            break
+                elif i == 2:
+                    # get the middle moving frame
+                    start_moving = 0
+                    end_moving = 0
+                    for t in range(obj_in_hand, len(traj)):
+                        state = traj.get(t)['info']['status']
+                        if state == 'moving' and start_moving == 0:
+                            start_moving = t
+                        elif state != 'moving' and start_moving != 0 and end_moving == 0:
+                            end_moving = t
+                            break
+                    n = start_moving + int((end_moving-start_moving)/2)
+                selected_frames.append(n)
 
         if isinstance(traj, (list, tuple)):
             return [traj[i] for i in selected_frames]
@@ -237,9 +250,10 @@ class CTODController():
         # ---- Resized crop ----#
         img_res = resized_crop(obs, top=top, left=left, height=box_h,
                                width=box_w, size=(100, 180))
-        cv2.imwrite(os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "resize_cropped.png"), np.moveaxis(
-            img_res.numpy()*255, 0, -1))
+        save_image(img_res,os.path.join(os.path.dirname(os.path.abspath(__file__)), "resize_cropped.png"))
+        # cv2.imwrite(os.path.join(os.path.dirname(
+        #     os.path.abspath(__file__)), "resize_cropped.png"), np.moveaxis(
+        #     img_res.numpy()*255, 0, -1))
         adj_bb = None
         # if bb is not None:
         #     adj_bb = self.adjust_bb(bb,
@@ -277,14 +291,16 @@ class CTODController():
         box_h, box_w = img_height - top - \
             crop_params[1], img_width - left - crop_params[3]
 
-        img_res_scaled = ToTensor()(obs)
+        img_res_scaled = ToTensor()(obs.copy())
         # ---- Resized crop ----#
         img_res_scaled = resized_crop(img_res_scaled, top=top, left=left, height=box_h,
                                       width=box_w, size=(100, 180))
 
-        cv2.imwrite(os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "camera_obs_resized.png"), np.array(np.moveaxis(
-                copy.deepcopy(img_res_scaled).cpu().numpy()*255, 0, -1), dtype=np.uint8))
+        # cv2.imwrite(os.path.join(os.path.dirname(
+        #     os.path.abspath(__file__)), "camera_obs_resized.png"), np.array(np.moveaxis(
+        #         copy.deepcopy(img_res_scaled).cpu().numpy()*255, 0, -1), dtype=np.uint8))
+        save_image(img_res_scaled,os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_cropped.png"))
+
         adj_bb = None
         # if bb is not None:
         #     adj_bb = self.adjust_bb(bb,
@@ -337,7 +353,8 @@ class CTODController():
         """
 
         # 1. Pre-process input
-        obs, bb = self.pre_process_obs(obs)
+        obs, bb = self.pre_process_obs(obs.copy()[:, :, ::-1]) # BGR to RGB
+        save_image(obs, "/home/mivia/catkin_ws/src/Ur5e-2f-85f/ur5e_2f_85_controller/src/controller/i_t.png")
         cv2.imwrite(os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "camera_obs.png"), np.array(np.moveaxis(
                 copy.deepcopy(obs).cpu().numpy()*255, 0, -1), dtype=np.uint8))
@@ -419,9 +436,12 @@ class CTODController():
                                             1,
                                             cv2.LINE_AA)
 
-                    cv2.imwrite(os.path.join(os.path.dirname(
-                        os.path.abspath(__file__)), "predicted_bb.png"), image)
-                    cv2.imshow("Image", image)
+                    # cv2.imwrite(os.path.join(os.path.dirname(
+                    #     os.path.abspath(__file__)), "predicted_bb.png"), image)
+                    pil_image = Image.fromarray(image)
+                    pil_image.save(os.path.join(os.path.dirname(
+                         os.path.abspath(__file__)), "predicted_bb.png"))
+                    cv2.imshow("Image", image[:,:,::-1])
                     cv2.setWindowProperty("Image", cv2.WND_PROP_TOPMOST, 1)
                     cv2.waitKey(50)
                     
